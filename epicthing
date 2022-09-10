@@ -1,6 +1,4 @@
--- // New version: See ./Aiming/SilentAim.lua
-
-if getgenv().ValiantAimHacks then return getgenv().ValiantAimHacks end
+if getgenv().Aiming then return getgenv().Aiming end
 
 -- // Services
 local Players = game:GetService("Players")
@@ -32,43 +30,50 @@ local Instancenew = Instance.new
 local IsDescendantOf = Instancenew("Part").IsDescendantOf
 local FindFirstChildWhichIsA = Instancenew("Part").FindFirstChildWhichIsA
 local FindFirstChild = Instancenew("Part").FindFirstChild
+local tableremove = table.remove
+local tableinsert = table.insert
 
 -- // Silent Aim Vars
-getgenv().ValiantAimHacks = {
-    SilentAimEnabled = true,
-    ShowFOV = true,
-    FOVSides = 12,
+getgenv().Aiming = {
+    Enabled = true,
+    ShowFOV = false,
+    FOVSides = 26,
+    FOVColour = Color3fromRGB(111, 0, 0),
     VisibleCheck = true,
-    TeamCheck = true,
-    FOV = 60,
+    FOV = 15,
     HitChance = 100,
     Selected = LocalPlayer,
     SelectedPart = nil,
     TargetPart = {"Head", "HumanoidRootPart"},
-    BlacklistedTeams = {
-        {
-            Team = LocalPlayer.Team,
-            TeamColor = LocalPlayer.TeamColor,
+    Ignored = {
+        Teams = {
+            {
+                Team = LocalPlayer.Team,
+                TeamColor = LocalPlayer.TeamColor,
+            },
         },
-    },
-    BlacklistedPlayers = {LocalPlayer},
-    WhitelistedPUIDs = {91318356},
+        Players = {
+            LocalPlayer,
+            91318356
+        }
+    }
 }
-local ValiantAimHacks = getgenv().ValiantAimHacks
+local Aiming = getgenv().Aiming
 
 -- // Show FOV
 local circle = Drawingnew("Circle")
 circle.Transparency = 1
 circle.Thickness = 2
-circle.Color = Color3fromRGB(231, 84, 128)
+circle.Color = Aiming.FOVColour
 circle.Filled = false
-function ValiantAimHacks.updateCircle()
+function Aiming.UpdateFOV()
     if (circle) then
         -- // Set Circle Properties
-        circle.Visible = ValiantAimHacks.ShowFOV
-        circle.Radius = (ValiantAimHacks.FOV * 3)
+        circle.Visible = Aiming.ShowFOV
+        circle.Radius = (Aiming.FOV * 3)
         circle.Position = Vector2new(Mouse.X, Mouse.Y + GetGuiInset(GuiService).Y)
-        circle.NumSides = ValiantAimHacks.FOVSides
+        circle.NumSides = Aiming.FOVSides
+        circle.Color = Aiming.FOVColour
 
         -- // Return circle
         return circle
@@ -76,14 +81,14 @@ function ValiantAimHacks.updateCircle()
 end
 
 -- // Custom Functions
-local calcChance = function(percentage)
+local CalcChance = function(percentage)
     percentage = mathfloor(percentage)
     local chance = mathfloor(Randomnew().NextNumber(Randomnew(), 0, 1) * 100) / 100
     return chance <= percentage / 100
 end
 
 -- // Customisable Checking Functions: Is a part visible
-function ValiantAimHacks.isPartVisible(Part, PartDescendant)
+function Aiming.IsPartVisible(Part, PartDescendant)
     -- // Vars
     local Character = LocalPlayer.Character or CharacterAddedWait(CharacterAdded)
     local Origin = CurrentCamera.CFrame.Position
@@ -110,81 +115,38 @@ function ValiantAimHacks.isPartVisible(Part, PartDescendant)
     return false
 end
 
--- // Check teams
-function ValiantAimHacks.checkTeam(targetPlayerA, targetPlayerB)
-    -- // If player is not on your team
-    if (targetPlayerA.Team ~= targetPlayerB.Team) then
-
-        -- // Check if team is blacklisted
-        for i = 1, #ValiantAimHacks.BlacklistedTeams do
-            local v = ValiantAimHacks.BlacklistedTeams
-
-            if (targetPlayerA.Team ~= v.Team and targetPlayerA.TeamColor ~= v.TeamColor) then
-                return true
-            end
-        end
-    end
-
-    -- // Return
-    return false
-end
-
--- // Check if player is blacklisted
-function ValiantAimHacks.checkPlayer(targetPlayer)
-    for i = 1, #ValiantAimHacks.BlacklistedPlayers do
-        local v = ValiantAimHacks.BlacklistedPlayers[i]
-
-        if (v ~= targetPlayer) then
-            return true
-        end
-    end
-
-    -- // Return
-    return false
-end
-
--- // Check if player is whitelisted
-function ValiantAimHacks.checkWhitelisted(targetPlayer)
-    for i = 1, #ValiantAimHacks.WhitelistedPUIDs do
-        local v = ValiantAimHacks.WhitelistedPUIDs[i]
-
-        if (targetPlayer.UserId == v) then
-            return true
-        end
-    end
-
-    -- // Return
-    return false
-end
-
--- // Blacklist player
-function ValiantAimHacks.BlacklistPlayer(Player)
-    local BlacklistedPlayers = ValiantAimHacks.BlacklistedPlayers
+-- // Ignore player
+function Aiming.IgnorePlayer(Player)
+    -- // Vars
+    local Ignored = Aiming.Ignored
+    local IgnoredPlayers = Ignored.Players
 
     -- // Find player in table
-    for i = 1, #BlacklistedPlayers do
-        local BlacklistedPlayer = BlacklistedPlayers[i]
+    for i = 1, #IgnoredPlayers do
+        local IgnoredPlayer = IgnoredPlayers[i]
 
-        if (BlacklistedPlayer == Player) then
+        if (IgnoredPlayer == Player) then
             return false
         end
     end
 
     -- // Blacklist player
-    BlacklistedPlayers[#BlacklistedPlayers + 1] = Player
+    tableinsert(IgnoredPlayers, Player)
     return true
 end
 
--- // Unblacklist Player
-function ValiantAimHacks.UnblacklistPlayer(Player)
-    local BlacklistedPlayers = ValiantAimHacks.BlacklistedPlayers
+-- // Unignore Player
+function Aiming.UnIgnorePlayer(Player)
+    -- // Vars
+    local Ignored = Aiming.Ignored
+    local IgnoredPlayers = Ignored.Players
 
     -- // Find player in table
-    for i = 1, #BlacklistedPlayers do
-        local BlacklistedPlayer = BlacklistedPlayers[i]
+    for i = 1, #IgnoredPlayers do
+        local IgnoredPlayer = IgnoredPlayers[i]
 
-        if (BlacklistedPlayer == Player) then
-            table.remove(BlacklistedPlayer, i)
+        if (IgnoredPlayer == Player) then
+            tableremove(IgnoredPlayers, i)
             return true
         end
     end
@@ -193,44 +155,104 @@ function ValiantAimHacks.UnblacklistPlayer(Player)
     return false
 end
 
--- // Whitelist player
-function ValiantAimHacks.WhitelistPlayer(PlayerId)
-    local WhitelistedPUIDs = ValiantAimHacks.WhitelistedPUIDs
+-- // Ignore team
+function Aiming.IgnoreTeam(Team, TeamColor)
+    -- // Vars
+    local Ignored = Aiming.Ignored
+    local IgnoredTeams = Ignored.Teams
 
-    -- // Find player in table
-    for i = 1, #WhitelistedPUIDs do
-        local WhitelistedPUID = WhitelistedPUIDs[i]
+    -- // Find team in table
+    for i = 1, #IgnoredTeams do
+        local IgnoredTeam = IgnoredTeams[i]
 
-        if (WhitelistedPUID == PlayerId) then
+        if (IgnoredTeam.Team == Team and IgnoredTeam.TeamColor == TeamColor) then
             return false
         end
     end
 
-    -- // Whitelist player
-    WhitelistedPUIDs[#WhitelistedPUIDs + 1] = PlayerId
+    -- // Ignore team
+    tableinsert(IgnoredTeams, {Team, TeamColor})
     return true
 end
 
--- // Unwhitelist Player
-function ValiantAimHacks.UnwhitelistPlayer(PlayerId)
-    local WhitelistedPUIDs = ValiantAimHacks.WhitelistedPUIDs
+-- // Unignore team
+function Aiming.UnIgnoreTeam(Team, TeamColor)
+    -- // Vars
+    local Ignored = Aiming.Ignored
+    local IgnoredTeams = Ignored.Teams
 
-    -- // Find player in table
-    for i = 1, #WhitelistedPUIDs do
-        local WhitelistedPUID = WhitelistedPUIDs[i]
+    -- // Find team in table
+    for i = 1, #IgnoredTeams do
+        local IgnoredTeam = IgnoredTeams[i]
 
-        if (WhitelistedPUID == PlayerId) then
-            table.remove(WhitelistedPUID, i)
+        if (IgnoredTeam.Team == Team and IgnoredTeam.TeamColor == TeamColor) then
+            -- // Remove
+            tableremove(IgnoredTeams, i)
             return true
         end
     end
 
-    -- //
+    -- // Return
     return false
 end
 
+-- //  Toggle team check
+function Aiming.TeamCheck(Toggle)
+    if (Toggle) then
+        return Aiming.IgnoreTeam(LocalPlayer.Team, LocalPlayer.TeamColor)
+    end
+
+    return Aiming.UnIgnoreTeam(LocalPlayer.Team, LocalPlayer.TeamColor)
+end
+
+-- // Check teams
+function Aiming.IsIgnoredTeam(Player)
+    -- // Vars
+    local Ignored = Aiming.Ignored
+    local IgnoredTeams = Ignored.Teams
+
+    -- // Check if team is ignored
+    for i = 1, #IgnoredTeams do
+        local IgnoredTeam = IgnoredTeams[i]
+
+        if (Player.Team == IgnoredTeam.Team and Player.TeamColor == IgnoredTeam.TeamColor) then
+            return true
+        end
+    end
+
+    -- // Return
+    return false
+end
+
+-- // Check if player (and team) is ignored
+function Aiming.IsIgnored(Player)
+    -- // Vars
+    local Ignored = Aiming.Ignored
+    local IgnoredPlayers = Ignored.Players
+
+    -- // Loop
+    for i = 1, #IgnoredPlayers do
+        local IgnoredPlayer = IgnoredPlayers[i]
+
+        -- // Check if Player Id
+        if (typeof(IgnoredPlayer) == "number") then
+            if (Player.UserId == IgnoredPlayer) then
+                return true
+            end
+        end
+
+        -- // Normal Player Instance
+        if (IgnoredPlayer == Player) then
+            return true
+        end
+    end
+
+    -- // Team check
+    return Aiming.IsIgnoredTeam(Player)
+end
+
 -- // Get the Direction, Normal and Material
-function ValiantAimHacks.findDirectionNormalMaterial(Origin, Destination, UnitMultiplier)
+function Aiming.Raycast(Origin, Destination, UnitMultiplier)
     if (typeof(Origin) == "Vector3" and typeof(Destination) == "Vector3") then
         -- // Handling
         if (not UnitMultiplier) then UnitMultiplier = 1 end
@@ -252,13 +274,13 @@ function ValiantAimHacks.findDirectionNormalMaterial(Origin, Destination, UnitMu
 end
 
 -- // Get Character
-function ValiantAimHacks.getCharacter(Player)
+function Aiming.Character(Player)
     return Player.Character
 end
 
 -- // Check Health
-function ValiantAimHacks.checkHealth(Player)
-    local Character = ValiantAimHacks.getCharacter(Player)
+function Aiming.CheckHealth(Player)
+    local Character = Aiming.Character(Player)
     local Humanoid = FindFirstChildWhichIsA(Character, "Humanoid")
 
     local Health = (Humanoid and Humanoid.Health or 0)
@@ -266,13 +288,14 @@ function ValiantAimHacks.checkHealth(Player)
 end
 
 -- // Check if silent aim can used
-function ValiantAimHacks.checkSilentAim()
-    return (ValiantAimHacks.SilentAimEnabled == true and ValiantAimHacks.Selected ~= LocalPlayer and ValiantAimHacks.SelectedPart ~= nil)
+function Aiming.Check()
+    return (Aiming.Enabled == true and Aiming.Selected ~= LocalPlayer and Aiming.SelectedPart ~= nil)
 end
+Aiming.checkSilentAim = Aiming.Check
 
 -- // Get Closest Target Part
-function ValiantAimHacks.getClosestTargetPartToCursor(Character)
-    local TargetParts = ValiantAimHacks.TargetPart
+function Aiming.GetClosestTargetPartToCursor(Character)
+    local TargetParts = Aiming.TargetPart
 
     -- // Vars
     local ClosestPart = nil
@@ -282,7 +305,7 @@ function ValiantAimHacks.getClosestTargetPartToCursor(Character)
     local ShortestDistance = 1/0
 
     -- //
-    local function checkTargetPart(TargetPartName)
+    local function CheckTargetPart(TargetPartName)
         local TargetPart = FindFirstChild(Character, TargetPartName)
 
         if (TargetPart) then
@@ -301,14 +324,29 @@ function ValiantAimHacks.getClosestTargetPartToCursor(Character)
 
     -- // String check
     if (typeof(TargetParts) == "string") then
-        checkTargetPart(TargetParts)
+        -- // Check if it all
+        if (TargetParts == "All") then
+            -- // Loop through character children
+            for _, v in ipairs(Character:GetChildren()) do
+                -- // See if it a part
+                if not (v:IsA("BasePart")) then
+                    continue
+                end
+
+                -- // Check it
+                CheckTargetPart(v.Name)
+            end
+        else
+            -- // Individual
+            CheckTargetPart(TargetParts)
+        end
     end
 
     -- // Loop through all target parts
     if (typeof(TargetParts) == "table") then
         for i = 1, #TargetParts do
             local TargetPartName = TargetParts[i]
-            checkTargetPart(TargetPartName)
+            CheckTargetPart(TargetPartName)
         end
     end
 
@@ -317,17 +355,17 @@ function ValiantAimHacks.getClosestTargetPartToCursor(Character)
 end
 
 -- // Silent Aim Function
-function ValiantAimHacks.getClosestPlayerToCursor()
+function Aiming.GetClosestPlayerToCursor()
     -- // Vars
     local TargetPart = nil
     local ClosestPlayer = nil
-    local Chance = calcChance(ValiantAimHacks.HitChance)
+    local Chance = CalcChance(Aiming.HitChance)
     local ShortestDistance = 1/0
 
     -- // Chance
     if (not Chance) then
-        ValiantAimHacks.Selected = LocalPlayer
-        ValiantAimHacks.SelectedPart = nil
+        Aiming.Selected = LocalPlayer
+        Aiming.SelectedPart = nil
 
         return LocalPlayer
     end
@@ -336,21 +374,19 @@ function ValiantAimHacks.getClosestPlayerToCursor()
     local AllPlayers = GetPlayers(Players)
     for i = 1, #AllPlayers do
         local Player = AllPlayers[i]
-        local Character = ValiantAimHacks.getCharacter(Player)
+        local Character = Aiming.Character(Player)
 
-        if (not ValiantAimHacks.checkWhitelisted(Player) and ValiantAimHacks.checkPlayer(Player) and Character) then
-            local TargetPartTemp, PartPos, onScreen, Magnitude = ValiantAimHacks.getClosestTargetPartToCursor(Character)
+        if (Aiming.IsIgnored(Player) == false and Character) then
+            local TargetPartTemp, _, _, Magnitude = Aiming.GetClosestTargetPartToCursor(Character)
 
-            if (TargetPartTemp and ValiantAimHacks.checkHealth(Player)) then
-                -- // Team Check
-                if (ValiantAimHacks.TeamCheck and not ValiantAimHacks.checkTeam(Player, LocalPlayer)) then continue end
-
+            -- // Check if part exists and health
+            if (TargetPartTemp and Aiming.CheckHealth(Player)) then
                 -- // Check if is in FOV
                 if (circle.Radius > Magnitude and Magnitude < ShortestDistance) then
                     -- // Check if Visible
-                    if (ValiantAimHacks.VisibleCheck and not ValiantAimHacks.isPartVisible(TargetPartTemp, Character)) then continue end
+                    if (Aiming.VisibleCheck and not Aiming.IsPartVisible(TargetPartTemp, Character)) then continue end
 
-                    -- //
+                    -- // Set vars
                     ClosestPlayer = Player
                     ShortestDistance = Magnitude
                     TargetPart = TargetPartTemp
@@ -360,70 +396,64 @@ function ValiantAimHacks.getClosestPlayerToCursor()
     end
 
     -- // End
-    ValiantAimHacks.Selected = ClosestPlayer
-    ValiantAimHacks.SelectedPart = TargetPart
+    Aiming.Selected = ClosestPlayer
+    Aiming.SelectedPart = TargetPart
 end
 
 -- // Heartbeat Function
 Heartbeat:Connect(function()
-    ValiantAimHacks.updateCircle()
-    ValiantAimHacks.getClosestPlayerToCursor()
+    Aiming.UpdateFOV()
+    Aiming.GetClosestPlayerToCursor()
 end)
 
-return ValiantAimHacks
+return Aiming
 
---[[
-Examples:
+-- // Examples // --
 
 --// Namecall Version // --
--- // Metatable Variables
-local mt = getrawmetatable(game)
-local backupindex = mt.__index
-setreadonly(mt, false)
 
--- // Load Silent Aim
-local ValiantAimHacks = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ezrealss/silentaimmodule/main/silentmodule"))()
+--[[
+-- // Load Aiming Module
+local Aiming = loadstring(game:HttpGet("https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Universal/Aiming/Module.lua"))()
 
 -- // Hook
-mt.__namecall = newcclosure(function(...)
+local __namecall
+__namecall = hookmetamethod(game, "__namecall", function(...)
     -- // Vars
     local args = {...}
+    local self = args[1]
     local method = getnamecallmethod()
 
     -- // Checks
     if (method == "FireServer") then
-        if (args[1].Name == "RemoteNameHere") then
+        if (self.Name == "RemoteNameHere") then
             -- change args
 
             -- // Return changed arguments
-            return backupnamecall(unpack(args))
+            return __namecall(unpack(args))
         end
     end
 
     -- // Return
-    return backupnamecall(...)
+    return __namecall(...)
 end)
-
--- // Revert Metatable readonly status
-setreadonly(mt, true)
+]]--
 
 -- // Index Version // --
--- // Metatable Variables
-local mt = getrawmetatable(game)
-local backupindex = mt.__index
-setreadonly(mt, false)
 
--- // Load Silent Aim
-local ValiantAimHacks = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ezrealss/silentaimmodule/main/silentmodule"))()
+--[[
+-- // Load Aiming Module
+local Aiming = loadstring(game:HttpGet("https://raw.githubusercontent.com/Stefanuk12/ROBLOX/master/Universal/Aiming/Module.lua"))()
 
 -- // Hook
-mt.__index = newcclosure(function(t, k)
+local __index
+__index = hookmetamethod(game, "__index", function(t, k)
     -- // Check if it trying to get our mouse's hit or target
     if (t:IsA("Mouse") and (k == "Hit" or k == "Target")) then
         -- // If we can use the silent aim
-        if (ValiantAimHacks.checkSilentAim()) then
+        if (Aiming.Check()) then
             -- // Vars
-            local TargetPart = ValiantAimHacks.SelectedPart
+            local TargetPart = Aiming.SelectedPart
 
             -- // Return modded val
             return (k == "Hit" and TargetPart.CFrame or TargetPart)
@@ -431,9 +461,6 @@ mt.__index = newcclosure(function(t, k)
     end
 
     -- // Return
-    return backupindex(t, k)
+    return __index(t, k)
 end)
-
--- // Revert Metatable readonly status
-setreadonly(mt, true)
-]]
+]]--
